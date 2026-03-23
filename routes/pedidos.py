@@ -124,6 +124,7 @@ def checkout():
             items_api.append({'producto_id': int(prod_id), 'cantidad': cantidad})
 
         try:
+            print(f"[WEB] Enviando pedido a API: items={items_api}, hora={hora_str}")
             r = requests.post(f'{API_URL}/pedidos/crear',
                 headers=api_headers(),
                 json={
@@ -132,16 +133,21 @@ def checkout():
                     'metodo_pago':  metodo_pago,
                     'hora_recoger': hora_str or None,
                 })
+            print(f"[WEB] Respuesta API: status={r.status_code}, body={r.text}")
             data = r.json()
             if r.status_code == 201 and data.get('ok'):
+                print(f"[WEB] Pedido creado exitosamente")
                 session.pop('carrito', None)
                 pedido_id = data['pedido']['id']
                 if metodo_pago == 'tarjeta':
                     return redirect(url_for('pedidos.pago_stripe', pedido_id=pedido_id))
                 return redirect(url_for('pedidos.ver_qr', pedido_id=pedido_id))
             else:
-                flash(data.get('error', 'Error al crear pedido'), 'error')
+                error_msg = data.get('error', 'Error al crear pedido')
+                print(f"[WEB] Error: {error_msg}")
+                flash(error_msg, 'error')
         except Exception as e:
+            print(f"[WEB] Excepción: {e}")
             flash('Error al conectar con el servidor', 'error')
 
     items, total = [], 0
