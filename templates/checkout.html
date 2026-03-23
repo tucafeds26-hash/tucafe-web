@@ -167,6 +167,13 @@ document.getElementById('checkout-form').addEventListener('submit', e => {
     alert('Por favor elige una hora de recoger.');
     return;
   }
+  // Validar que la hora sea futura
+  const ahora = new Date().toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit', hour12:false});
+  if (hora <= ahora) {
+    e.preventDefault();
+    alert('La hora de recoger ya pasó. Por favor elige una hora futura.');
+    return;
+  }
   document.getElementById('notas-hidden').value = document.getElementById('notas-input').value;
 });
 </script>
