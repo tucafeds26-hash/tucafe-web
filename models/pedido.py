@@ -1,5 +1,6 @@
 from config.database import db
 from datetime import datetime
+from models import Usuario
 
 class Pedido(db.Model):
     __tablename__ = 'pedidos'
