@@ -23,10 +23,19 @@ def login():
             if r.status_code == 200 and data.get('ok'):
                 # Guardar token en sesion
                 session['jwt_token'] = data['token']
-                # Cargar usuario de la BD local para flask-login
+                # Cargar o crear usuario de la BD local para flask-login
                 usuario = Usuario.query.filter_by(email=email).first()
-                if usuario:
-                    login_user(usuario)
+                if not usuario:
+                    usuario = Usuario(
+                        id       = data['usuario']['id'],
+                        nombre   = data['usuario']['nombre'],
+                        email    = data['usuario']['email'],
+                        rol      = data['usuario']['rol'],
+                        verified = data['usuario']['verified'],
+                    )
+                    db.session.add(usuario)
+                    db.session.commit()
+                login_user(usuario)
                 if data['usuario']['rol'] == 'admin':
                     return redirect(url_for('admin.dashboard'))
                 elif data['usuario']['rol'] == 'chef':
@@ -75,8 +84,17 @@ def verificar():
             if r.status_code == 200 and data.get('ok'):
                 session['jwt_token'] = data['token']
                 usuario = Usuario.query.filter_by(email=email).first()
-                if usuario:
-                    login_user(usuario)
+                if not usuario:
+                    usuario = Usuario(
+                        id       = data['usuario']['id'],
+                        nombre   = data['usuario']['nombre'],
+                        email    = data['usuario']['email'],
+                        rol      = data['usuario']['rol'],
+                        verified = data['usuario']['verified'],
+                    )
+                    db.session.add(usuario)
+                    db.session.commit()
+                login_user(usuario)
                 flash('Cuenta verificada. Bienvenido!', 'success')
                 return redirect(url_for('menu.tienda'))
             else:
