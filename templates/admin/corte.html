@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}Corte de Caja — TU CAFE Admin{% endblock %}
+{% block body_class %}dark-page admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">TU <span>CAFE</span></div>
+      <div class="sb-user">
+        <span class="sb-avatar">👑</span>
+        <div>
+          <div class="sb-name">{{ current_user.nombre }}</div>
+          <div class="sb-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-label">Principal</div>
+      <a href="{{ url_for('admin.dashboard') }}" class="sb-item">📊 Dashboard</a>
+      <div class="sb-label">Gestión</div>
+      <a href="{{ url_for('admin.pedidos') }}" class="sb-item">🗒️ Comandas</a>
+      <a href="{{ url_for('admin.productos') }}" class="sb-item">🍽️ Productos</a>
+      <a href="{{ url_for('admin.usuarios') }}" class="sb-item">👥 Usuarios</a>
+      <div class="sb-label">Reportes</div>
+      <a href="{{ url_for('admin.corte') }}" class="sb-item active">🧾 Corte de Caja</a>
+    </nav>
+    <div class="sb-footer">
+      <a href="{{ url_for('auth.logout') }}" class="sb-logout">🚪 Cerrar sesión</a>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <div class="topbar">
+      <div class="topbar-title">CORTE DE CAJA</div>
+      <div class="topbar-right">
+        <span class="topbar-dot"></span>
+        <span class="topbar-time" id="clock"></span>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- Selector -->
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-body">
+          <form method="GET" action="{{ url_for('admin.corte') }}"
+            style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+            <div>
+              <label class="form-label">Tipo de corte</label>
+              <select name="tipo" class="form-input" style="min-width:160px">
+                <option value="diario"  {{ 'selected' if tipo=='diario' }}>📅 Diario</option>
+                <option value="semanal" {{ 'selected' if tipo=='semanal' }}>📆 Semanal</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Fecha</label>
+              <input type="date" name="fecha" class="form-input" value="{{ fecha }}">
+            </div>
+            <button type="submit" class="btn-yellow">🔍 Generar</button>
+            <a href="{{ url_for('admin.corte_pdf', tipo=tipo, fecha=fecha) }}"
+              style="background:var(--teal);color:white;padding:.5rem 1.2rem;border-radius:999px;font-weight:800;font-size:.9rem;text-decoration:none">
+              ⬇️ PDF
+            </a>
+            {% if pedidos and not ya_archivados %}
+            <button type="button" onclick="document.getElementById('modal-cierre').style.display='flex'"
+              style="background:var(--red-dim);color:#f87171;border:1.5px solid rgba(239,68,68,.35);padding:.5rem 1.2rem;border-radius:999px;font-weight:800;font-size:.9rem;cursor:pointer">
+              🔒 Cerrar Corte
+            </button>
+            {% elif ya_archivados %}
+            <div style="padding:.5rem 1rem;background:var(--green-dim);border-radius:999px;font-size:.82rem;color:#4ade80;font-weight:700">
+              ✅ Corte ya cerrado
+            </div>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+
+      <!-- Titulo -->
+      <div style="margin-bottom:1.25rem">
+        <h2 style="font-family:var(--font-title);font-size:1.3rem;color:var(--white)">{{ titulo }}</h2>
+        <p style="color:var(--text-dim);font-size:.82rem;margin-top:.25rem">
+          Generado el {{ now.strftime('%d/%m/%Y %H:%M') }} por {{ current_user.nombre }}
+        </p>
+      </div>
+
+      <!-- 4 STATS -->
+      <div class="stats-row cols-4" style="margin-bottom:1.25rem">
+        <div class="stat-card yellow">
+          <div class="stat-header"><span class="stat-label">Ventas Totales</span><span class="stat-icon yellow">💰</span></div>
+          <div class="stat-value">${{ "%.2f"|format(stats.total_ventas) }}</div>
+          <div class="stat-sub neutral">{{ stats.num_pagados }} cobrados</div>
+        </div>
+        <div class="stat-card teal">
+          <div class="stat-header"><span class="stat-label">Total Pedidos</span><span class="stat-icon teal">🗒️</span></div>
+          <div class="stat-value">{{ stats.num_pedidos }}</div>
+          <div class="stat-sub neutral">{{ stats.num_entregados }} entregados</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-header"><span class="stat-label">Ticket Promedio</span><span class="stat-icon green">📊</span></div>
+          <div class="stat-value">${{ "%.2f"|format(stats.ticket_promedio) }}</div>
+          <div class="stat-sub up">por pedido</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-header"><span class="stat-label">Hora Pico</span><span class="stat-icon orange">⏰</span></div>
+          <div class="stat-value">
+            {% if stats.hora_pico is not none %}{{ '%02d'|format(stats.hora_pico) }}:00{% else %}—{% endif %}
+          </div>
+          <div class="stat-sub neutral">mayor demanda</div>
+        </div>
+      </div>
+
+      <!-- PAGO + SECCION -->
+      <div class="grid-2" style="margin-bottom:1.25rem">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Métodos de Pago</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:.75rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.9rem 1rem;background:var(--green-dim);border-radius:var(--radius-sm);border:1px solid rgba(34,197,94,.2)">
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <span style="font-size:1.4rem">💵</span>
+                <div>
+                  <div style="font-weight:800;font-size:.9rem;color:var(--text)">Efectivo</div>
+                  <div style="font-size:.75rem;color:var(--text-dim)">Pagos en caja</div>
+                </div>
+              </div>
+              <span style="font-family:var(--font-title);font-size:1.3rem;color:#4ade80">${{ "%.2f"|format(stats.total_efectivo) }}</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.9rem 1rem;background:rgba(59,130,246,.12);border-radius:var(--radius-sm);border:1px solid rgba(59,130,246,.2)">
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <span style="font-size:1.4rem">💳</span>
+                <div>
+                  <div style="font-weight:800;font-size:.9rem;color:var(--text)">Tarjeta</div>
+                  <div style="font-size:.75rem;color:var(--text-dim)">Pagos via Stripe</div>
+                </div>
+              </div>
+              <span style="font-family:var(--font-title);font-size:1.3rem;color:#93c5fd">${{ "%.2f"|format(stats.total_tarjeta) }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:.6rem 1rem;background:var(--dark2);border-radius:var(--radius-sm)">
+              <span style="color:var(--text-dim);font-size:.82rem;font-weight:700">TOTAL COBRADO</span>
+              <span style="font-family:var(--font-title);font-size:1.1rem;color:var(--yellow)">${{ "%.2f"|format(stats.total_ventas) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Ventas por Sección</span></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:.5rem">
+            {% for s in stats.por_seccion %}
+            <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;background:var(--dark2);border-radius:var(--radius-sm)">
+              <span style="font-size:1.2rem">{{ s.emoji }}</span>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:.84rem;color:var(--text)">{{ s.nombre.title() }}</div>
+               <div style="font-size:.72rem;color:var(--text-dim)">{{ s.cantidad }} items · estrella: {{ s.top }}</div>
+              </div>
+              <span style="font-family:var(--font-title);color:var(--yellow);font-size:.95rem">${{ "%.2f"|format(s.ingresos) }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA PEDIDOS -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Resumen de Pedidos</span>
+          <span style="font-size:.78rem;color:var(--text-dim)">{{ pedidos|length }} pedidos en el periodo</span>
+        </div>
+        {% if pedidos %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#ID</th><th>Hora</th><th>Cliente</th><th>Hora recoger</th><th>Total</th><th>Método</th><th>Estado</th><th>Pago</th></tr>
+            </thead>
+            <tbody>
+              {% for pedido in pedidos %}
+              <tr>
+                <td><strong style="color:var(--yellow)">#{{ pedido.id }}</strong></td>
+                <td style="color:var(--text-dim)">{{ pedido.creado_en.strftime('%H:%M') }}</td>
+                <td>{{ pedido.cliente.nombre if pedido.cliente else 'N/A' }}</td>
+                <td style="color:var(--text-dim)">{{ pedido.hora_recoger.strftime('%H:%M') if pedido.hora_recoger else '—' }}</td>
+                <td><strong style="color:var(--yellow)">${{ "%.2f"|format(pedido.total) }}</strong></td>
+                <td>
+                  <span class="badge {{ 'badge-green' if pedido.metodo_pago == 'tarjeta' else 'badge-yellow' }}">
+                    {{ '💳' if pedido.metodo_pago == 'tarjeta' else '💵' }} {{ pedido.metodo_pago or '—' }}
+                  </span>
+                </td>
+                <td>
+                  {% if pedido.estado == 'entregado' %}<span class="badge badge-green">✓ Entregado</span>
+                  {% elif pedido.estado == 'preparado' %}<span class="badge badge-green">🍽️ Listo</span>
+                  {% elif pedido.estado == 'en_preparacion' %}<span class="badge badge-orange">🔥 Preparando</span>
+                  {% else %}<span class="badge badge-yellow">⏳ Pendiente</span>{% endif %}
+                </td>
+                <td>
+                  {% if pedido.pagado %}<span class="badge badge-green">✅ Pagado</span>
+                  {% else %}<span class="badge badge-red">❌ Pendiente</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <div class="es-icon">🧾</div>
+          <div class="es-title">Sin pedidos en este periodo</div>
+          <div class="es-desc">Selecciona otra fecha o tipo de corte</div>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CERRAR CORTE -->
+<div id="modal-cierre" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--dark);border:1.5px solid var(--border);border-radius:16px;padding:2rem;max-width:420px;width:90%;text-align:center">
+    <div style="font-size:2.5rem;margin-bottom:.75rem">🔒</div>
+    <div style="font-family:var(--font-title);font-size:1.2rem;color:var(--white);margin-bottom:.5rem">CERRAR ESTE CORTE</div>
+    <div style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.5rem">
+      Se archivarán <strong style="color:var(--yellow)">{{ pedidos|length }} pedidos</strong>
+      del periodo. El dashboard quedará limpio para el siguiente turno.
+      Esta acción no se puede deshacer.
+    </div>
+    <div style="display:flex;gap:.75rem;justify-content:center">
+      <button onclick="document.getElementById('modal-cierre').style.display='none'"
+        style="background:var(--dark2);color:var(--text-dim);border:1px solid var(--border);padding:.6rem 1.5rem;border-radius:999px;cursor:pointer;font-weight:700">
+        Cancelar
+      </button>
+      <form method="POST" action="{{ url_for('admin.cerrar_corte') }}" style="display:inline">
+        <input type="hidden" name="tipo"  value="{{ tipo }}">
+        <input type="hidden" name="fecha" value="{{ fecha }}">
+        <button type="submit"
+          style="background:#ef4444;color:white;border:none;padding:.6rem 1.5rem;border-radius:999px;cursor:pointer;font-weight:800">
+          Sí, cerrar corte
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+setInterval(updateClock,1000); updateClock();
+</script>
+{% endblock %}

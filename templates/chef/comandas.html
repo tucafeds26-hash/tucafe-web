@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block title %}Comandas — TU CAFE{% endblock %}
+{% block body_class %}dark-page admin-page{% endblock %}
+
+{% block content %}
+{% set emojis = {'hamburguesas':'🍔','pizza':'🍕','tacos':'🌮','sushi':'🍱','postres':'🍰'} %}
+
+<style>
+.comanda-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.1rem;
+}
+.comanda-k {
+  background: var(--dark2);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--border);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+}
+.comanda-k:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.comanda-k.urgente    { border-top-color: #ef4444; }
+.comanda-k.preparando { border-top-color: #f97316; }
+
+.ck-head {
+  padding: .75rem 1rem;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,.2);
+}
+.ck-num { font-family: var(--font-title); font-size: 1.1rem; color: var(--yellow); }
+.ck-urgente { display: flex; align-items: center; gap: .3rem; font-size: .65rem; font-weight: 700; color: #ef4444; margin-top: .25rem; }
+.ck-urgente-dot { width: 5px; height: 5px; border-radius: 50%; background: #ef4444; animation: blink-dot 1.2s ease-in-out infinite; }
+.ck-right { display: flex; flex-direction: column; align-items: flex-end; gap: .3rem; }
+.ck-chip { font-size: .6rem; font-weight: 800; padding: .15rem .5rem; border-radius: 3px; letter-spacing: .05em; text-transform: uppercase; }
+.chip-new  { background: rgba(249,115,22,.15); color: #f97316; }
+.chip-cook { background: rgba(251,191,36,.12); color: #fbbf24; }
+.ck-hora   { font-family: monospace; font-size: .72rem; color: var(--text-dim); }
+.ck-hora.tarde { color: #ef4444; }
+.ck-badge-p { font-size: .6rem; font-weight: 700; padding: .12rem .45rem; border-radius: 3px; }
+.ck-pagado   { background: rgba(34,197,94,.12);  color: #4ade80; }
+.ck-sinpago  { background: rgba(239,68,68,.12);  color: #f87171; }
+
+.ck-body { padding: .75rem 1rem; flex: 1; }
+.ck-cliente { font-size: .7rem; color: var(--text-dim); margin-bottom: .6rem; text-transform: uppercase; letter-spacing: .05em; }
+
+.ck-item { display: flex; align-items: center; gap: .55rem; padding: .38rem 0; border-bottom: 1px solid var(--border); }
+.ck-item:last-child { border-bottom: none; }
+.ck-emoji  { font-size: 1.15rem; }
+.ck-nombre { flex: 1; font-weight: 600; font-size: .87rem; color: var(--text); }
+.ck-qty    { font-family: monospace; font-weight: 900; font-size: .85rem; color: var(--yellow); background: var(--dark3, #222); padding: .1rem .35rem; border-radius: 4px; }
+
+.ck-nota { margin-top: .6rem; padding: .45rem .65rem; background: rgba(255,214,0,.05); border-left: 2px solid var(--yellow); font-size: .72rem; color: #d4a853; }
+
+.ck-btn {
+  width: 100%; padding: .85rem 1rem;
+  border: none; cursor: pointer;
+  font-family: var(--font-title); font-size: .85rem; letter-spacing: .06em;
+  transition: opacity .15s, filter .15s;
+}
+.ck-btn:hover { filter: brightness(1.1); }
+.ck-btn:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+.ck-btn-iniciar  { background: #292524; color: #f5f0e8; }
+.ck-btn-terminar { background: #166534; color: #4ade80; }
+
+@keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:.2} }
+</style>
+
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">TU <span>CAFE</span></div>
+      <div class="sb-user">
+        <span class="sb-avatar">{{ emojis[seccion] }}</span>
+        <div>
+          <div class="sb-name">{{ current_user.nombre }}</div>
+          <div class="sb-role">Chef — {{ seccion.title() }}</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-label">Mi Estación</div>
+      <a href="{{ url_for('chef.comandas') }}" class="sb-item active">{{ emojis[seccion] }} Mis Comandas</a>
+      <a href="{{ url_for('pedidos.escanear') }}" class="sb-item">📷 Escanear QR</a>
+    </nav>
+    <div class="sb-footer">
+      <a href="{{ url_for('auth.logout') }}" class="sb-logout">🚪 Cerrar sesión</a>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <div class="topbar">
+      <div class="topbar-title">COMANDAS — {{ seccion.upper() }}</div>
+      <div class="topbar-right">
+        {% if pendientes > 0 %}
+        <span class="badge badge-orange" id="badge-count">{{ pendientes }} pendiente{{ 's' if pendientes != 1 else '' }}</span>
+        {% else %}
+        <span class="badge badge-green" id="badge-count">Sin pendientes</span>
+        {% endif %}
+        <span class="topbar-dot"></span>
+        <span class="topbar-time" id="clock"></span>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      {% if pedidos %}
+      <div class="section-label" style="font-size:.7rem;font-weight:700;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        Pendientes · de más antigua a más nueva
+        <span style="flex:1;height:1px;background:var(--border);display:block"></span>
+      </div>
+      {% endif %}
+
+      <div class="comanda-grid" id="grid">
+        {% if pedidos %}
+          {% for pedido in pedidos %}
+          {% set mins = ((now - pedido.creado_en).seconds // 60) %}
+          {% set estado_sec = pedido._estado_seccion %}
+          <div class="comanda-k {% if estado_sec == 'en_preparacion' %}preparando{% elif mins >= 5 %}urgente{% endif %}"
+               id="c-{{ pedido.id }}">
+            <div class="ck-head">
+              <div>
+                <div class="ck-num">#{{ pedido.id }}</div>
+                {% if estado_sec != 'en_preparacion' and mins >= 5 %}
+                <div class="ck-urgente"><span class="ck-urgente-dot"></span>Lleva {{ mins }} min</div>
+                {% endif %}
+              </div>
+              <div class="ck-right">
+                {% if estado_sec == 'en_preparacion' %}
+                  <span class="ck-chip chip-cook">En cocina</span>
+                {% else %}
+                  <span class="ck-chip chip-new">Nueva</span>
+                {% endif %}
+                {% if pedido.pagado %}
+                  <span class="ck-badge-p ck-pagado">Pagado</span>
+                {% else %}
+                  <span class="ck-badge-p ck-sinpago">Sin pago</span>
+                {% endif %}
+                <span class="ck-hora {% if mins >= 5 and estado_sec == 'pendiente' %}tarde{% endif %}">
+                  {{ pedido.creado_en.strftime('%H:%M') }}
+                </span>
+              </div>
+            </div>
+            <div class="ck-body">
+              <div class="ck-cliente">Cliente: {{ pedido.cliente.nombre }}</div>
+              {% for item in pedido.items %}
+                {% if item.producto and item.producto.categoria == seccion %}
+                <div class="ck-item">
+                  <span class="ck-emoji">{{ item.producto.emoji }}</span>
+                  <span class="ck-nombre">{{ item.producto.nombre }}</span>
+                  <span class="ck-qty">×{{ item.cantidad }}</span>
+                </div>
+                {% endif %}
+              {% endfor %}
+              {% if pedido.notas %}
+              <div class="ck-nota">📝 {{ pedido.notas }}</div>
+              {% endif %}
+            </div>
+            {% if estado_sec == 'pendiente' %}
+            <button class="ck-btn ck-btn-iniciar" onclick="iniciar({{ pedido.id }}, this)">
+              Iniciar preparación
+            </button>
+            {% else %}
+            <button class="ck-btn ck-btn-terminar" onclick="terminar({{ pedido.id }}, this)">
+              Listo para entregar
+            </button>
+            {% endif %}
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="es-icon">✓</div>
+          <div class="es-title">Todo al corriente</div>
+          <div class="es-desc">No hay pedidos pendientes por ahora</div>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+setInterval(updateClock, 1000); updateClock();
+
+function iniciar(id, btn) {
+  btn.disabled = true; btn.textContent = '...';
+  fetch(`/chef/comandas/${id}/preparar`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        const card = document.getElementById('c-' + id);
+        card.classList.remove('urgente');
+        card.classList.add('preparando');
+        const chip = card.querySelector('.ck-chip');
+        chip.textContent = 'En cocina'; chip.className = 'ck-chip chip-cook';
+        const ut = card.querySelector('.ck-urgente'); if (ut) ut.remove();
+        const hora = card.querySelector('.ck-hora'); if (hora) hora.classList.remove('tarde');
+        btn.className = 'ck-btn ck-btn-terminar';
+        btn.textContent = 'Listo para entregar';
+        btn.disabled = false;
+        btn.onclick = () => terminar(id, btn);
+        showToast('Pedido #' + id + ' — en preparación');
+      } else {
+        showToast('Error al actualizar');
+        btn.disabled = false; btn.textContent = 'Iniciar preparación';
+      }
+    })
+    .catch(() => { showToast('Error de conexión'); btn.disabled = false; });
+}
+
+function terminar(id, btn) {
+  btn.disabled = true; btn.textContent = '...';
+  fetch(`/chef/comandas/${id}/listo`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        const card = document.getElementById('c-' + id);
+        card.style.transition = 'opacity .35s, transform .35s';
+        card.style.opacity = '0'; card.style.transform = 'scale(.95)';
+        setTimeout(() => { card.remove(); updateCount(); }, 380);
+        showToast('Pedido #' + id + ' — listo, esperando al cliente');
+      } else {
+        showToast('Error al actualizar');
+        btn.disabled = false; btn.textContent = 'Listo para entregar';
+      }
+    })
+    .catch(() => { showToast('Error de conexión'); btn.disabled = false; });
+}
+
+function updateCount() {
+  const n = document.querySelectorAll('.comanda-k').length;
+  const badge = document.getElementById('badge-count');
+  if (n === 0) {
+    if (badge) { badge.textContent = 'Sin pendientes'; badge.className = 'badge badge-green'; }
+    document.getElementById('grid').innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="es-icon">✓</div>
+        <div class="es-title">Todo al corriente</div>
+        <div class="es-desc">No hay pedidos pendientes</div>
+      </div>`;
+  } else {
+    if (badge) { badge.textContent = n + ' pendiente' + (n > 1 ? 's' : ''); badge.className = 'badge badge-orange'; }
+  }
+}
+
+let totalActual = {{ pedidos|length }};
+
+function checkNuevosPedidos() {
+  fetch('/chef/comandas/count')
+    .then(r => r.json())
+    .then(data => {
+      if (data.count !== totalActual) {
+        location.reload();
+      }
+    })
+    .catch(() => {});
+}
+
+setInterval(checkNuevosPedidos, 10000);
+</script>
+{% endblock %}

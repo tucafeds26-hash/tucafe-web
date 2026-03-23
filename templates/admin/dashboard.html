@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard — TU CAFE{% endblock %}
+{% block body_class %}dark-page admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">TU <span>CAFE</span></div>
+      <div class="sb-user">
+        <span class="sb-avatar">👑</span>
+        <div>
+          <div class="sb-name">{{ current_user.nombre }}</div>
+          <div class="sb-role">Administrador</div>
+        </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-label">Principal</div>
+      <a href="{{ url_for('admin.dashboard') }}" class="sb-item active">📊 Dashboard</a>
+      <div class="sb-label">Reportes</div>
+<a href="{{ url_for('admin.corte') }}" class="sb-item">🧾 Corte de Caja</a>
+      </div>
+      <div class="sb-label">Gestión</div>
+      <a href="{{ url_for('admin.pedidos') }}" class="sb-item">🗒️ Comandas</a>
+      <a href="{{ url_for('admin.productos') }}" class="sb-item">🍽️ Productos</a>
+      <a href="{{ url_for('admin.usuarios') }}" class="sb-item">👥 Usuarios</a>
+    </nav>
+    <div class="sb-footer">
+      <a href="{{ url_for('auth.logout') }}" class="sb-logout">🚪 Cerrar sesión</a>
+    </div>
+  </aside>
+
+  <!-- Contenido -->
+  <div class="admin-main">
+    <div class="topbar">
+      <div class="topbar-title">DASHBOARD GLOBAL</div>
+      <div class="topbar-right">
+        <span class="topbar-dot"></span>
+        <span class="topbar-time" id="clock"></span>
+      </div>
+    </div>
+
+    <div class="admin-content">
+
+      <!-- Stats -->
+      <div class="stats-row cols-4">
+        <div class="stat-card yellow">
+          <div class="stat-header"><span class="stat-label">Ingresos Hoy</span><span class="stat-icon yellow">💰</span></div>
+          <div class="stat-value">${{ "%.2f"|format(total_ingresos) }}</div>
+          <div class="stat-sub up">pedidos cobrados</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-header"><span class="stat-label">Pedidos Pagados</span><span class="stat-icon green">✅</span></div>
+          <div class="stat-value">{{ pagados }}</div>
+          <div class="stat-sub neutral">de {{ total_pedidos }} totales</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-header"><span class="stat-label">En Preparación</span><span class="stat-icon orange">🔥</span></div>
+          <div class="stat-value">{{ en_preparacion }}</div>
+          <div class="stat-sub neutral">pendientes</div>
+        </div>
+        <div class="stat-card teal">
+          <div class="stat-header"><span class="stat-label">Entregados</span><span class="stat-icon teal">📦</span></div>
+          <div class="stat-value">{{ entregados }}</div>
+          <div class="stat-sub up">completados</div>
+        </div>
+      </div>
+
+      <!-- Stats por sección -->
+      <div class="grid-2" style="margin-bottom:1.25rem">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Estado por Sección</span></div>
+          <div class="card-body">
+            {% for s in stats_por_seccion %}
+            {% set emojis = {'hamburguesas':'🍔','pizza':'🍕','tacos':'🌮','sushi':'🍱','postres':'🍰'} %}
+            <div class="seccion-row">
+              <span class="sec-emoji">{{ emojis[s.nombre] }}</span>
+              <div class="sec-info">
+                <span class="sec-nombre">{{ s.nombre.title() }}</span>
+                <span class="sec-pedidos">{{ s.pedidos }} pedidos</span>
+              </div>
+              <span class="sec-ingresos">${{ "%.2f"|format(s.ingresos) }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Por Cobrar</span><span class="badge badge-red">⏳ Pendiente</span></div>
+          <div class="card-body" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.5rem">
+            <div style="font-family:var(--font-title);font-size:2.5rem;color:#f87171">${{ "%.2f"|format(por_cobrar) }}</div>
+            <div style="color:var(--text-dim);font-size:.84rem">en {{ total_pedidos - pagados }} pedidos sin cobrar</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Últimos pedidos -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Últimos Pedidos</span>
+          <a href="{{ url_for('admin.pedidos') }}" class="btn btn-ghost">Ver todos →</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Orden</th><th>Cliente</th><th>Hora</th><th>Total</th><th>Estado</th><th>Pago</th></tr>
+            </thead>
+            <tbody>
+              {% for pedido in pedidos %}
+              <tr>
+                <td><strong style="color:var(--yellow)">#{{ pedido.id }}</strong></td>
+                <td>{{ pedido.cliente.nombre }}</td>
+                <td style="color:var(--text-dim)">{{ pedido.creado_en.strftime('%H:%M') }}</td>
+                <td><strong>${{ "%.2f"|format(pedido.total) }}</strong></td>
+                <td>
+                  {% if pedido.estado == 'entregado' %}
+                    <span class="badge badge-green">✓ Entregado</span>
+                  {% elif pedido.estado == 'en_preparacion' %}
+                    <span class="badge badge-orange">🔥 Preparando</span>
+                  {% else %}
+                    <span class="badge badge-yellow">⏳ Pendiente</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <button class="btn-pago {{ 'pagado' if pedido.pagado else 'no-pagado' }}"
+                    onclick="togglePago({{ pedido.id }}, this)">
+                    {{ '✅ Pagado' if pedido.pagado else '❌ No Pagado' }}
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Reloj
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock, 1000); updateClock();
+
+// Toggle pago
+function togglePago(id, btn) {
+  fetch(`/admin/pedidos/${id}/toggle-pago`, {method:'POST'})
+    .then(r => r.json())
+    .then(data => {
+      btn.className = 'btn-pago ' + (data.pagado ? 'pagado' : 'no-pagado');
+      btn.textContent = data.pagado ? '✅ Pagado' : '❌ No Pagado';
+      showToast(data.pagado ? '✅ Marcado como PAGADO' : '❌ Marcado como NO PAGADO');
+    });
+}
+</script>
+{% endblock %}

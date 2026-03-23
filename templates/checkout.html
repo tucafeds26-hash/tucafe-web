@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% block title %}Checkout — TU CAFE{% endblock %}
+
+{% block content %}
+<div class="cart-page">
+  <h1 class="cart-title">CONFIRMAR PEDIDO</h1>
+
+  <div class="cart-layout">
+    <div>
+      <!-- Resumen items -->
+      <div class="card-light" style="margin-bottom:1.25rem">
+        <div class="card-header-light"><span class="card-title-dark">Resumen de tu pedido</span></div>
+        <div class="cart-items" style="padding:1.25rem">
+          {% for item in items %}
+          <div class="cart-item">
+            <div class="ci-emoji">
+              {% if item.producto.imagen %}
+                <img src="{{ url_for('static', filename='img/productos/' + item.producto.imagen) }}"
+                  style="width:2.5rem;height:2.5rem;border-radius:8px;object-fit:cover">
+              {% else %}
+                {{ item.producto.emoji }}
+              {% endif %}
+            </div>
+            <div class="ci-info">
+              <div class="ci-name">{{ item.producto.nombre }}</div>
+              <div class="ci-price">${{ "%.2f"|format(item.producto.precio) }} c/u</div>
+            </div>
+            <div class="ci-qty"><span class="qty-num">x{{ item.cantidad }}</span></div>
+            <div class="ci-subtotal"><div class="ci-sub-val">${{ "%.2f"|format(item.subtotal) }}</div></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Hora de recoger -->
+      <div class="card-light" style="margin-bottom:1.25rem">
+        <div class="card-header-light">
+          <span class="card-title-dark">Hora de recoger — Turno {{ turno_nombre }}</span>
+        </div>
+        <div style="padding:1.25rem">
+          {% if horas %}
+          <p style="font-size:.85rem;color:#6b7280;margin-bottom:1rem">
+            Elige a qué hora vas a pasar por tu pedido.
+            Recuerda: pasada esta hora el chef <strong>no garantiza la calidad</strong> del producto.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:.5rem" id="horas-grid">
+            {% for hora in horas %}
+            <button type="button" class="hora-btn" data-hora="{{ hora }}" onclick="seleccionarHora('{{ hora }}')">
+              {{ hora }}
+            </button>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="hora-seleccionada" value="">
+          <div id="hora-display" style="margin-top:.75rem;font-size:.85rem;color:#6b7280">
+            Ninguna hora seleccionada
+          </div>
+          {% else %}
+          <div style="padding:.75rem;background:#fef9c3;border-radius:8px;font-size:.85rem;color:#854d0e">
+            ⚠️ No hay horarios disponibles en este turno. Intenta de nuevo en unos minutos.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Notas -->
+      <div class="card-light" style="margin-bottom:1.25rem">
+        <div class="card-header-light"><span class="card-title-dark">Notas (opcional)</span></div>
+        <div style="padding:1.25rem 1.25rem 0">
+          <textarea id="notas-input" class="form-textarea" rows="2"
+            placeholder="Sin cebolla, extra salsa, etc..."></textarea>
+        </div>
+      </div>
+
+      <!-- Metodo de pago -->
+      <div class="card-light">
+        <div class="card-header-light"><span class="card-title-dark">Metodo de pago</span></div>
+        <div style="padding:1.25rem;display:flex;flex-direction:column;gap:.75rem">
+
+          <label class="metodo-pago-card active" id="lbl-efectivo">
+            <input type="radio" name="metodo_pago" value="efectivo" id="rd-efectivo" style="display:none" checked>
+            <div class="mp-icon">💵</div>
+            <div class="mp-info">
+              <div class="mp-title">Pago en Efectivo</div>
+              <div class="mp-desc">Paga en caja al retirar tu pedido</div>
+            </div>
+            <div class="mp-check" id="chk-efectivo">✓</div>
+          </label>
+
+          <label class="metodo-pago-card" id="lbl-tarjeta">
+            <input type="radio" name="metodo_pago" value="tarjeta" id="rd-tarjeta" style="display:none">
+            <div class="mp-icon">💳</div>
+            <div class="mp-info">
+              <div class="mp-title">Pago con Tarjeta</div>
+              <div class="mp-desc">Pago seguro via Stripe</div>
+            </div>
+            <div class="mp-check" id="chk-tarjeta" style="opacity:0">✓</div>
+          </label>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary lateral -->
+    <div class="order-summary">
+      <div class="summary-title">TOTAL A PAGAR</div>
+      <div class="sum-row"><span>Subtotal:</span><span>${{ "%.2f"|format(total) }}</span></div>
+      <div class="divider"></div>
+      <div class="sum-row total"><span>Total:</span><span>${{ "%.2f"|format(total) }}</span></div>
+
+      <div id="hora-resumen" style="margin-top:.75rem;padding:.6rem .75rem;background:#f0fdf4;border-radius:8px;font-size:.82rem;color:#166534;display:none">
+        🕐 Recoger a las <strong id="hora-resumen-val"></strong>
+      </div>
+
+      <form method="POST" action="{{ url_for('pedidos.checkout') }}" id="checkout-form">
+        <input type="hidden" name="notas"        id="notas-hidden">
+        <input type="hidden" name="metodo_pago"  id="metodo-hidden" value="efectivo">
+        <input type="hidden" name="hora_recoger" id="hora-hidden"   value="">
+        <button type="submit" class="btn-checkout" style="margin-top:1.25rem" id="btn-confirmar">
+          CONFIRMAR PEDIDO →
+        </button>
+      </form>
+      <a href="{{ url_for('pedidos.carrito') }}" class="btn-keep-shopping">← Volver al carrito</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.hora-btn {
+  padding:.45rem 1rem;border-radius:999px;border:1.5px solid #e5e7eb;
+  background:white;font-size:.84rem;font-weight:700;color:#374151;
+  cursor:pointer;transition:all .2s;
+}
+.hora-btn:hover { border-color:#F97316;color:#F97316; }
+.hora-btn.selected {
+  background:#111;color:white;border-color:#111;
+}
+</style>
+<script>
+function seleccionarHora(hora) {
+  document.querySelectorAll('.hora-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector(`[data-hora="${hora}"]`).classList.add('selected');
+  document.getElementById('hora-seleccionada').value = hora;
+  document.getElementById('hora-hidden').value = hora;
+  document.getElementById('hora-display').textContent = 'Hora seleccionada: ' + hora;
+  document.getElementById('hora-display').style.color = '#166534';
+  document.getElementById('hora-resumen').style.display = 'block';
+  document.getElementById('hora-resumen-val').textContent = hora;
+}
+
+// Radios de pago
+document.querySelectorAll('input[name="metodo_pago"]').forEach(rd => {
+  rd.addEventListener('change', () => {
+    document.getElementById('chk-efectivo').style.opacity = rd.value==='efectivo' ? '1' : '0';
+    document.getElementById('chk-tarjeta').style.opacity  = rd.value==='tarjeta'  ? '1' : '0';
+    document.getElementById('lbl-efectivo').classList.toggle('active', rd.value==='efectivo');
+    document.getElementById('lbl-tarjeta').classList.toggle('active',  rd.value==='tarjeta');
+    document.getElementById('metodo-hidden').value = rd.value;
+  });
+});
+
+document.getElementById('checkout-form').addEventListener('submit', e => {
+  const hora = document.getElementById('hora-seleccionada').value;
+  if (!hora) {
+    e.preventDefault();
+    alert('Por favor elige una hora de recoger.');
+    return;
+  }
+  document.getElementById('notas-hidden').value = document.getElementById('notas-input').value;
+});
+</script>
+{% endblock %}

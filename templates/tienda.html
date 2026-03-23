@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% block title %}Menú — TU CAFE{% endblock %}
+
+{% block content %}
+
+<!-- Category Bar -->
+<div class="cat-bar">
+  <a href="{{ url_for('menu.tienda') }}"
+     class="cat-btn {% if not categoria %}active-yellow{% endif %}">
+    <span class="cat-icon">🏪</span>Todas
+  </a>
+  {% for cat in categorias %}
+  {% set emojis = {'hamburguesas':'🍔','pizza':'🍕','tacos':'🌮','sushi':'🍱','postres':'🍰'} %}
+  <a href="{{ url_for('menu.tienda_categoria', categoria=cat) }}"
+     class="cat-btn {% if categoria == cat %}active{% endif %}">
+    <span class="cat-icon">{{ emojis[cat] }}</span>{{ cat.title() }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Hero Slider (solo en todas) -->
+{% if not categoria %}
+<div class="hero-slider">
+  <div class="hero-track" id="hero-track">
+    <div class="hero-slide hero-slide-1">
+      <div class="hero-content">
+        <div class="hero-tag">🔥 Lo más pedido</div>
+        <h1 class="hero-title">BURGER PREMIUM</h1>
+        <p class="hero-sub">La favorita de todos</p>
+        <a href="{{ url_for('menu.tienda_categoria', categoria='hamburguesas') }}" class="btn-order">VER BURGERS</a>
+      </div>
+      <div class="hero-emoji">🍔</div>
+    </div>
+    <div class="hero-slide hero-slide-2">
+      <div class="hero-content">
+        <div class="hero-tag">🍕 Recién salida</div>
+        <h1 class="hero-title">PIZZA PEPPERONI</h1>
+        <p class="hero-sub">Crujiente y deliciosa</p>
+        <a href="{{ url_for('menu.tienda_categoria', categoria='pizza') }}" class="btn-order">VER PIZZAS</a>
+      </div>
+      <div class="hero-emoji">🍕</div>
+    </div>
+    <div class="hero-slide hero-slide-3">
+      <div class="hero-content">
+        <div class="hero-tag">🌮 Estilo mexicano</div>
+        <h1 class="hero-title">TACOS ESPECIALES</h1>
+        <p class="hero-sub">Sabor auténtico de la calle</p>
+        <a href="{{ url_for('menu.tienda_categoria', categoria='tacos') }}" class="btn-order">VER TACOS</a>
+      </div>
+      <div class="hero-emoji">🌮</div>
+    </div>
+    <div class="hero-slide hero-slide-4">
+      <div class="hero-content">
+        <div class="hero-tag">🍱 Fresco y fino</div>
+        <h1 class="hero-title">SUSHI ROLL</h1>
+        <p class="hero-sub">Rollos artesanales del día</p>
+        <a href="{{ url_for('menu.tienda_categoria', categoria='sushi') }}" class="btn-order">VER SUSHI</a>
+      </div>
+      <div class="hero-emoji">🍱</div>
+    </div>
+    <div class="hero-slide hero-slide-5">
+      <div class="hero-content">
+        <div class="hero-tag">🍰 Dulce tentación</div>
+        <h1 class="hero-title">POSTRES GOURMET</h1>
+        <p class="hero-sub">El final perfecto</p>
+        <a href="{{ url_for('menu.tienda_categoria', categoria='postres') }}" class="btn-order">VER POSTRES</a>
+      </div>
+      <div class="hero-emoji">🍰</div>
+    </div>
+  </div>
+  <button class="hero-nav-btn prev" onclick="slideHero(-1)">❮</button>
+  <button class="hero-nav-btn next" onclick="slideHero(1)">❯</button>
+  <div class="hero-dots" id="hero-dots"></div>
+</div>
+{% else %}
+{% set cat_config = {
+  'hamburguesas': {'bg':'linear-gradient(135deg,#e85d2e,#c0392b)', 'emoji':'🍔'},
+  'pizza':        {'bg':'linear-gradient(135deg,#e84393,#8b0040)',  'emoji':'🍕'},
+  'tacos':        {'bg':'linear-gradient(135deg,#f0a500,#a05a00)',  'emoji':'🌮'},
+  'sushi':        {'bg':'linear-gradient(135deg,#0e7490,#064e63)',  'emoji':'🍱'},
+  'postres':      {'bg':'linear-gradient(135deg,#7c3aed,#4c0fb0)',  'emoji':'🍰'},
+} %}
+<div class="cat-hero" style="background:{{ cat_config[categoria].bg }}">
+  <div class="cat-bg-emoji">{{ cat_config[categoria].emoji }}</div>
+  <div class="cat-hero-title">{{ categoria.upper() }}</div>
+  <div class="cat-hero-sub">Explora nuestra selección</div>
+</div>
+{% endif %}
+
+<!-- Productos -->
+<section class="menu-section">
+  {% if not categoria %}
+  <h2 class="section-title">EXPLORA NUESTRO MENÚ</h2>
+  {% endif %}
+  <div class="products-grid">
+    {% for producto in productos %}
+    <div class="prod-card">
+      <div class="prod-img grad-{{ producto.categoria }}" style="{{ 'padding:0;overflow:hidden;' if producto.imagen else '' }}">
+        {% if producto.imagen %}
+          <img src="{{ url_for('static', filename='img/productos/' + producto.imagen) }}"
+            style="width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit">
+        {% else %}
+          {{ producto.emoji }}
+        {% endif %}
+        <span class="prod-cat-badge">{{ producto.categoria.upper() }}</span>
+      </div>
+      <div class="prod-body">
+        <div class="prod-name">{{ producto.nombre }}</div>
+        <div class="prod-desc">{{ producto.descripcion }}</div>
+        <div class="prod-footer">
+          <span class="prod-price">${{ "%.2f"|format(producto.precio) }}</span>
+          <button class="btn-agregar"
+            onclick="agregarAlCarrito({{ producto.id }}, '{{ producto.nombre }}')">
+            + Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let heroIdx = 0;
+const heroTotal = 5;
+let heroInterval;
+
+function renderDots() {
+  const dots = document.getElementById('hero-dots');
+  if (!dots) return;
+  dots.innerHTML = '';
+  for (let i = 0; i < heroTotal; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'hero-dot' + (i === heroIdx ? ' active' : '');
+    btn.onclick = () => goHero(i);
+    dots.appendChild(btn);
+  }
+}
+
+function goHero(idx) {
+  heroIdx = idx;
+  const track = document.getElementById('hero-track');
+  if (track) track.style.transform = `translateX(-${idx * 100}%)`;
+  renderDots();
+}
+
+function slideHero(dir) {
+  heroIdx = (heroIdx + dir + heroTotal) % heroTotal;
+  goHero(heroIdx);
+  resetInterval();
+}
+
+function resetInterval() {
+  clearInterval(heroInterval);
+  heroInterval = setInterval(() => slideHero(1), 4500);
+}
+
+if (document.getElementById('hero-track')) {
+  renderDots();
+  resetInterval();
+}
+
+function agregarAlCarrito(id, nombre) {
+  fetch('/pedidos/carrito/agregar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `producto_id=${id}&cantidad=1`
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      const badge = document.getElementById('cart-count');
+      if (badge) badge.textContent = data.total_items;
+      showToast(`🛒 ${nombre} agregado al carrito`);
+    } else {
+      window.location.href = '/auth/login';
+    }
+  })
+  .catch(() => window.location.href = '/auth/login');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Carrito — TU CAFE{% endblock %}
+
+{% block content %}
+<div class="cart-page">
+  <h1 class="cart-title">CARRITO DE COMPRAS</h1>
+
+  {% if not items %}
+  <div class="cart-empty">
+    <div class="cart-empty-icon">🛒</div>
+    <div class="cart-empty-title">Tu carrito está vacío</div>
+    <div class="cart-empty-desc">Agrega productos para comenzar tu pedido</div>
+    <a href="{{ url_for('menu.tienda') }}" class="btn-order">VER MENÚ</a>
+  </div>
+  {% else %}
+  <div class="cart-layout">
+    <div>
+      <div class="cart-items">
+        {% for item in items %}
+        <div class="cart-item" id="item-{{ item.producto.id }}">
+          <div class="ci-emoji">{{ item.producto.emoji }}</div>
+          <div class="ci-info">
+            <div class="ci-name">{{ item.producto.nombre }}</div>
+            <div class="ci-desc">{{ item.producto.descripcion }}</div>
+            <div class="ci-price">${{ "%.2f"|format(item.producto.precio) }}</div>
+          </div>
+          <div class="ci-qty">
+            <button class="qty-btn" onclick="cambiarCantidad({{ item.producto.id }}, -1)">−</button>
+            <span class="qty-num" id="qty-{{ item.producto.id }}">{{ item.cantidad }}</span>
+            <button class="qty-btn" onclick="cambiarCantidad({{ item.producto.id }}, 1)">+</button>
+          </div>
+          <div class="ci-subtotal">
+            <div class="ci-sub-label">Subtotal:</div>
+            <div class="ci-sub-val" id="sub-{{ item.producto.id }}">${{ "%.2f"|format(item.subtotal) }}</div>
+          </div>
+          <button class="ci-delete" onclick="quitarItem({{ item.producto.id }})">🗑️</button>
+        </div>
+        {% endfor %}
+      </div>
+      <a href="{{ url_for('menu.tienda') }}" class="btn-keep-shopping">← Seguir Comprando</a>
+    </div>
+
+    <div class="order-summary">
+      <div class="summary-title">RESUMEN DEL PEDIDO</div>
+      <div class="sum-row"><span>Subtotal:</span><span id="sum-subtotal">${{ "%.2f"|format(total) }}</span></div>
+      <div class="divider"></div>
+      <div class="sum-row total"><span>Total:</span><span id="sum-total">${{ "%.2f"|format(total) }}</span></div>
+      <a href="{{ url_for('pedidos.checkout') }}" class="btn-checkout">CONFIRMAR PEDIDO →</a>
+      <a href="{{ url_for('menu.tienda') }}" class="btn-keep-shopping">Seguir Comprando</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function cambiarCantidad(id, delta) {
+  const qtyEl = document.getElementById(`qty-${id}`);
+  const nuevaCantidad = parseInt(qtyEl.textContent) + delta;
+  if (nuevaCantidad <= 0) { quitarItem(id); return; }
+  fetch('/pedidos/carrito/actualizar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `producto_id=${id}&cantidad=${nuevaCantidad}`
+  }).then(r => r.json()).then(data => { if (data.ok) location.reload(); });
+}
+
+function quitarItem(id) {
+  fetch('/pedidos/carrito/quitar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `producto_id=${id}`
+  }).then(r => r.json()).then(data => { if (data.ok) location.reload(); });
+}
+</script>
+{% endblock %}

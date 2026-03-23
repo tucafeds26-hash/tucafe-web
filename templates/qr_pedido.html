@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Tu QR - Pedido #{{ pedido.id }}{% endblock %}
+
+{% block content %}
+<div class="qr-page">
+  <div class="qr-card">
+
+    <div class="qr-header">
+      <div class="qr-brand">TU <span>CAFE</span></div>
+      <div class="qr-subtitle">Tu ticket digital</div>
+    </div>
+
+    <div class="qr-status-row">
+      {% if pedido.pagado %}
+        <span class="qr-badge green">💰 Pagado</span>
+      {% else %}
+        <span class="qr-badge yellow">⏳ Por pagar en caja</span>
+      {% endif %}
+      {% if pedido.estado == 'entregado' %}
+        <span class="qr-badge green">✅ Entregado</span>
+      {% elif pedido.estado == 'en_preparacion' %}
+        <span class="qr-badge orange">🔥 Preparando</span>
+      {% else %}
+        <span class="qr-badge gray">🍳 Pendiente</span>
+      {% endif %}
+    </div>
+
+    <div class="qr-img-wrap">
+      <img src="data:image/png;base64,{{ qr_b64 }}" alt="QR Pedido" class="qr-img">
+      <div class="qr-id-label">PEDIDO #{{ pedido.id }}</div>
+    </div>
+
+    <div class="qr-instrucciones">
+      <div class="qr-step {% if not pedido.pagado %}active{% endif %}">
+        <span class="step-num">1</span>
+        <span>Muestra este QR en <strong>caja</strong> para pagar</span>
+      </div>
+      <div class="qr-step {% if pedido.pagado and pedido.estado != 'entregado' %}active{% endif %}">
+        <span class="step-num">2</span>
+        <span>Muestra el mismo QR al <strong>chef</strong> para retirar tu orden</span>
+      </div>
+      <div class="qr-step {% if pedido.estado == 'entregado' %}done{% endif %}">
+        <span class="step-num">✓</span>
+        <span>¡Disfruta tu pedido!</span>
+      </div>
+    </div>
+
+    <div class="qr-items">
+      {% for item in pedido.items %}
+      <div class="qr-item">
+        <span>{{ item.producto.emoji if item.producto else '🍽️' }}</span>
+        <span class="qi-name">{{ item.producto.nombre if item.producto else 'Producto' }}</span>
+        <span class="qi-qty">x{{ item.cantidad }}</span>
+        <span class="qi-price">${{ "%.2f"|format(item.subtotal()) }}</span>
+      </div>
+      {% endfor %}
+      <div class="qr-total">
+        <span>Total</span>
+        <span>${{ "%.2f"|format(pedido.total) }}</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.75rem;margin-top:1.5rem;justify-content:center">
+      <a href="{{ url_for('pedidos.mis_pedidos') }}" class="btn-keep-shopping">← Mis pedidos</a>
+      <button onclick="window.print()" class="btn-print">🖨️ Imprimir</button>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

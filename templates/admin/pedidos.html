@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Comandas — TU CAFE Admin{% endblock %}
+{% block body_class %}dark-page admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">TU <span>CAFE</span></div>
+      <div class="sb-user">
+        <span class="sb-avatar">👑</span>
+        <div>
+          <div class="sb-name">{{ current_user.nombre }}</div>
+          <div class="sb-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-label">Principal</div>
+      <a href="{{ url_for('admin.dashboard') }}" class="sb-item">📊 Dashboard</a>
+      <div class="sb-label">Gestión</div>
+      <a href="{{ url_for('admin.pedidos') }}" class="sb-item active">🗒️ Comandas</a>
+      <a href="{{ url_for('admin.productos') }}" class="sb-item">🍽️ Productos</a>
+      <a href="{{ url_for('admin.usuarios') }}" class="sb-item">👥 Usuarios</a>
+    </nav>
+    <div class="sb-footer">
+      <a href="{{ url_for('auth.logout') }}" class="sb-logout">🚪 Cerrar sesión</a>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <div class="topbar">
+      <div class="topbar-title">TODAS LAS COMANDAS</div>
+      <div class="topbar-right">
+        <span class="topbar-dot"></span>
+        <span class="topbar-time" id="clock"></span>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="filters-row">
+        <a href="{{ url_for('admin.pedidos') }}" class="filter-btn {% if filtro == 'all' %}active{% endif %}">🍽️ Todas</a>
+        <a href="{{ url_for('admin.pedidos', filtro='hamburguesas') }}" class="filter-btn {% if filtro == 'hamburguesas' %}active{% endif %}">🍔 Burgers</a>
+        <a href="{{ url_for('admin.pedidos', filtro='pizza') }}" class="filter-btn {% if filtro == 'pizza' %}active{% endif %}">🍕 Pizza</a>
+        <a href="{{ url_for('admin.pedidos', filtro='tacos') }}" class="filter-btn {% if filtro == 'tacos' %}active{% endif %}">🌮 Tacos</a>
+        <a href="{{ url_for('admin.pedidos', filtro='sushi') }}" class="filter-btn {% if filtro == 'sushi' %}active{% endif %}">🍱 Sushi</a>
+        <a href="{{ url_for('admin.pedidos', filtro='postres') }}" class="filter-btn {% if filtro == 'postres' %}active{% endif %}">🍰 Postres</a>
+        <a href="{{ url_for('admin.pedidos', filtro='no_pagado') }}" class="filter-btn {% if filtro == 'no_pagado' %}active{% endif %}">🔴 No pagados</a>
+        <a href="{{ url_for('admin.pedidos', filtro='abandonado') }}" class="filter-btn {% if filtro == 'abandonado' %}active{% endif %}">🚫 No recogidos</a>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Orden</th><th>Cliente</th><th>Hora</th><th>Productos</th><th>Total</th><th>Estado</th><th>Pago</th></tr>
+            </thead>
+            <tbody>
+              {% for pedido in pedidos %}
+              <tr>
+                <td><strong style="color:var(--yellow)">#{{ pedido.id }}</strong></td>
+                <td>{{ pedido.cliente.nombre }}</td>
+                <td style="color:var(--text-dim)">{{ pedido.creado_en.strftime('%H:%M') }}</td>
+                <td style="font-size:.78rem;color:var(--text-dim);max-width:200px">
+                  {{ pedido.items|map(attribute='producto')|selectattr('nombre')|map(attribute='nombre')|join(', ') }}
+                </td>
+                <td><strong>${{ "%.2f"|format(pedido.total) }}</strong></td>
+                <td>
+                  {% if pedido.estado == 'entregado' %}
+                    <span class="badge badge-green">✓ Entregado</span>
+                  {% elif pedido.estado == 'abandonado' %}
+                    <span class="badge badge-red">🚫 No recogido</span>
+                  {% elif pedido.estado in ('en_preparacion', 'preparado') %}
+                    <span class="badge badge-orange">🔥 Preparando</span>
+                  {% else %}
+                    <span class="badge badge-yellow">⏳ Pendiente</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <button class="btn-pago {{ 'pagado' if pedido.pagado else 'no-pagado' }}"
+                    onclick="togglePago({{ pedido.id }}, this)">
+                    {{ '✅ Pagado' if pedido.pagado else '❌ No Pagado' }}
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateClock() {
+  document.getElementById('clock').textContent =
+   new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+setInterval(updateClock,1000); updateClock();
+
+function togglePago(id, btn) {
+  fetch(`/admin/pedidos/${id}/toggle-pago`, {method:'POST'})
+    .then(r => r.json())
+    .then(data => {
+      btn.className = 'btn-pago ' + (data.pagado ? 'pagado' : 'no-pagado');
+      btn.textContent = data.pagado ? '✅ Pagado' : '❌ No Pagado';
+      showToast(data.pagado ? '✅ Marcado como PAGADO' : '❌ Marcado como NO PAGADO');
+    });
+}
+</script>
+{% endblock %}

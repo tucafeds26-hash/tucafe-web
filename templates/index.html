@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}TU CAFE — Inicio{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero hero-burger">
+  <div class="hero-content">
+    <div class="hero-tag">🔥 Lo más pedido</div>
+    <h1 class="hero-title">BURGER PREMIUM</h1>
+    <p class="hero-sub">La favorita de todos — jugosa, crujiente y perfecta</p>
+    <a href="{{ url_for('menu.tienda') }}" class="btn-order">VER MENÚ COMPLETO</a>
+  </div>
+  <div class="hero-emoji">🍔</div>
+</section>
+
+<!-- Categorías -->
+<section class="cat-section">
+  {% set cats = [('hamburguesas','🍔','Hamburguesas'),('pizza','🍕','Pizza'),('tacos','🌮','Tacos'),('sushi','🍱','Sushi'),('postres','🍰','Postres')] %}
+  {% for cat_id, emoji, label in cats %}
+  <a href="{{ url_for('menu.tienda_categoria', categoria=cat_id) }}" class="cat-card cat-{{ cat_id }}">
+    <span class="cat-emoji">{{ emoji }}</span>
+    <span class="cat-label">{{ label }}</span>
+  </a>
+  {% endfor %}
+</section>
+
+<!-- Productos destacados -->
+<section class="menu-section">
+  <h2 class="section-title">EXPLORA NUESTRO MENÚ</h2>
+  <div class="products-grid">
+    {% for producto in productos[:12] %}
+    <div class="prod-card">
+      <div class="prod-img grad-{{ producto.categoria }}">
+        {{ producto.emoji }}
+        <span class="prod-cat-badge">{{ producto.categoria.upper() }}</span>
+      </div>
+      <div class="prod-body">
+        <div class="prod-name">{{ producto.nombre }}</div>
+        <div class="prod-desc">{{ producto.descripcion }}</div>
+        <div class="prod-footer">
+          <span class="prod-price">${{ "%.2f"|format(producto.precio) }}</span>
+          <button class="btn-agregar"
+            onclick="agregarAlCarrito({{ producto.id }}, '{{ producto.nombre }}', {{ producto.precio }})">
+            + Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function agregarAlCarrito(id, nombre, precio) {
+  fetch('/pedidos/carrito/agregar', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: `producto_id=${id}&cantidad=1`
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      document.getElementById('cart-count').textContent = data.total_items;
+      showToast(`${nombre} agregado al carrito ✓`);
+    } else {
+      window.location.href = '/auth/login';
+    }
+  })
+  .catch(() => window.location.href = '/auth/login');
+}
+</script>
+{% endblock %}

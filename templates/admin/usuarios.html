@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Usuarios — TU CAFE Admin{% endblock %}
+{% block body_class %}dark-page admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">TU <span>CAFE</span></div>
+      <div class="sb-user">
+        <span class="sb-avatar">👑</span>
+        <div>
+          <div class="sb-name">{{ current_user.nombre }}</div>
+          <div class="sb-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-label">Principal</div>
+      <a href="{{ url_for('admin.dashboard') }}" class="sb-item">📊 Dashboard</a>
+      <div class="sb-label">Gestión</div>
+      <a href="{{ url_for('admin.pedidos') }}" class="sb-item">🗒️ Comandas</a>
+      <a href="{{ url_for('admin.productos') }}" class="sb-item">🍽️ Productos</a>
+      <a href="{{ url_for('admin.usuarios') }}" class="sb-item active">👥 Usuarios</a>
+    </nav>
+    <div class="sb-footer">
+      <a href="{{ url_for('auth.logout') }}" class="sb-logout">🚪 Cerrar sesión</a>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <div class="topbar">
+      <div class="topbar-title">USUARIOS</div>
+    </div>
+    <div class="admin-content">
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Sección</th><th>Registro</th></tr>
+            </thead>
+            <tbody>
+              {% for u in usuarios %}
+              <tr>
+                <td><strong>{{ u.nombre }}</strong></td>
+                <td style="color:var(--text-dim)">{{ u.email }}</td>
+                <td>
+                  {% if u.rol == 'admin' %}
+                    <span class="badge badge-yellow">👑 Admin</span>
+                  {% elif u.rol == 'chef' %}
+                    <span class="badge badge-orange">🍳 Chef</span>
+                  {% else %}
+                    <span class="badge badge-green">👤 Cliente</span>
+                  {% endif %}
+                </td>
+                <td style="color:var(--text-dim)">{{ u.seccion or '—' }}</td>
+                <td style="color:var(--text-dim);font-size:.78rem">{{ u.creado_en.strftime('%d/%m/%Y') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

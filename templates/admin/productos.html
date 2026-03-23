@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Productos — TU CAFE Admin{% endblock %}
+{% block body_class %}dark-page admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">TU <span>CAFE</span></div>
+      <div class="sb-user">
+        <span class="sb-avatar">👑</span>
+        <div>
+          <div class="sb-name">{{ current_user.nombre }}</div>
+          <div class="sb-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-label">Principal</div>
+      <a href="{{ url_for('admin.dashboard') }}" class="sb-item">📊 Dashboard</a>
+      <div class="sb-label">Gestión</div>
+      <a href="{{ url_for('admin.pedidos') }}" class="sb-item">🗒️ Comandas</a>
+      <a href="{{ url_for('admin.productos') }}" class="sb-item active">🍽️ Productos</a>
+      <a href="{{ url_for('admin.usuarios') }}" class="sb-item">👥 Usuarios</a>
+    </nav>
+    <div class="sb-footer">
+      <a href="{{ url_for('auth.logout') }}" class="sb-logout">🚪 Cerrar sesión</a>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <div class="topbar">
+      <div class="topbar-title">PRODUCTOS</div>
+      <div class="topbar-right">
+        <a href="{{ url_for('admin.nuevo_producto') }}" class="btn btn-yellow">+ Nuevo Producto</a>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Emoji</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Disponible</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+              {% for p in productos %}
+              <tr>
+                <td style="font-size:1.5rem">{{ p.emoji }}</td>
+                <td><strong>{{ p.nombre }}</strong><br><span style="font-size:.75rem;color:var(--text-dim)">{{ p.descripcion }}</span></td>
+                <td><span class="badge badge-yellow">{{ p.categoria }}</span></td>
+                <td><strong style="color:var(--yellow)">${{ "%.2f"|format(p.precio) }}</strong></td>
+                <td>
+                  {% if p.disponible %}
+                    <span class="badge badge-green">✓ Activo</span>
+                  {% else %}
+                    <span class="badge badge-red">✗ Inactivo</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div style="display:flex;gap:.4rem">
+                    <a href="{{ url_for('admin.editar_producto', prod_id=p.id) }}" class="btn btn-ghost">✏️ Editar</a>
+                    <form method="POST" action="{{ url_for('admin.eliminar_producto', prod_id=p.id) }}"
+                      onsubmit="return confirm('¿Eliminar este producto?')">
+                      <button type="submit" class="btn btn-red">🗑️</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

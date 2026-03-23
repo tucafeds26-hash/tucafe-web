@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% block title %}Escáner QR — TU CAFE{% endblock %}
+{% block body_class %}dark-page admin-page{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">TU <span>CAFE</span></div>
+      <div class="sb-user">
+        <span class="sb-avatar">{% if current_user.rol == 'admin' %}👑{% else %}🍳{% endif %}</span>
+        <div>
+          <div class="sb-name">{{ current_user.nombre }}</div>
+          <div class="sb-role">{{ 'Administrador' if current_user.rol == 'admin' else 'Chef — ' + (current_user.seccion or '') }}</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      {% if current_user.rol == 'admin' %}
+      <div class="sb-label">Principal</div>
+      <a href="{{ url_for('admin.dashboard') }}" class="sb-item">📊 Dashboard</a>
+      <div class="sb-label">Gestión</div>
+      <a href="{{ url_for('admin.pedidos') }}" class="sb-item">🗒️ Comandas</a>
+      <a href="{{ url_for('admin.productos') }}" class="sb-item">🍽️ Productos</a>
+      <a href="{{ url_for('admin.usuarios') }}" class="sb-item">👥 Usuarios</a>
+      {% else %}
+      <a href="{{ url_for('chef.comandas') }}" class="sb-item">🍳 Mis Comandas</a>
+      {% endif %}
+      <div class="sb-label">QR</div>
+      <a href="{{ url_for('pedidos.escanear') }}" class="sb-item active">📷 Escáner QR</a>
+    </nav>
+    <div class="sb-footer">
+      <a href="{{ url_for('auth.logout') }}" class="sb-logout">🚪 Cerrar sesión</a>
+    </div>
+  </aside>
+
+  <div class="admin-main">
+    <div class="topbar">
+      <div class="topbar-title">ESCÁNER QR</div>
+      <div class="topbar-right">
+        <span class="topbar-dot"></span>
+        <span class="topbar-time" id="clock"></span>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start">
+
+        <!-- Scanner -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">📷 Cámara / Ingreso Manual</span>
+          </div>
+          <div class="card-body">
+            <div class="scanner-wrap">
+              <video id="qr-video" class="scanner-video" autoplay muted playsinline></video>
+              <div class="scanner-overlay">
+                <div class="scanner-frame"></div>
+              </div>
+              <div class="scanner-status" id="scanner-status">Iniciando cámara...</div>
+            </div>
+
+            <div class="scanner-divider">— o ingresa el ID manualmente —</div>
+
+            <form method="POST" action="{{ url_for('pedidos.escanear') }}" id="scan-form">
+              <div class="form-group">
+                <label class="form-label">ID del pedido (leído del QR)</label>
+                <div style="display:flex;gap:.5rem">
+                  <input type="text" name="pedido_id" id="pedido-input"
+                    class="form-input" placeholder="Ej: 42" autocomplete="off" autofocus>
+                  <button type="submit" class="btn-yellow" style="white-space:nowrap">🔍 Buscar</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Resultado -->
+        <div class="card" id="result-card" style="{{ 'display:block' if pedido else 'display:none' }}">
+          <div class="card-header">
+            <span class="card-title">📋 Pedido encontrado</span>
+            {% if pedido %}
+            <span style="font-family:var(--font-title);color:var(--yellow);font-size:1.1rem">#{{ pedido.id }}</span>
+            {% endif %}
+          </div>
+          {% if pedido %}
+          <div class="card-body">
+
+            {% if pedido.estado == 'abandonado' %}
+            <!-- PEDIDO ABANDONADO -->
+            <div style="text-align:center;padding:2rem 1rem;display:flex;flex-direction:column;align-items:center;gap:.75rem">
+              <span style="font-size:3rem">🚫</span>
+              <div style="font-weight:800;color:#ef4444;font-size:1.1rem">Pedido no recogido a tiempo</div>
+              <div style="color:#f87171;font-size:.85rem;max-width:280px;text-align:center">
+                Este pedido fue marcado como <strong>no recogido</strong> porque el cliente no lo retiró dentro de los 15 minutos.
+              </div>
+              <div style="background:rgba(239,68,68,.1);border:1.5px solid #ef4444;border-radius:10px;padding:.75rem 1.5rem;margin-top:.5rem">
+                <div style="font-size:.75rem;color:#f87171;font-weight:700">Cliente</div>
+                <div style="color:var(--text);font-weight:800">{{ pedido.cliente.nombre }}</div>
+              </div>
+            </div>
+
+            {% else %}
+            <!-- PEDIDO NORMAL -->
+            <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+              {% if pedido.pagado %}
+                <span class="badge badge-green">💰 Pagado</span>
+              {% else %}
+                <span class="badge badge-red">❌ No Pagado</span>
+              {% endif %}
+              {% if pedido.estado == 'entregado' %}
+                <span class="badge badge-green">✅ Entregado</span>
+              {% elif pedido.estado in ('en_preparacion', 'preparado') %}
+                <span class="badge badge-orange">🔥 En preparación</span>
+              {% else %}
+                <span class="badge badge-yellow">⏳ Pendiente</span>
+              {% endif %}
+            </div>
+
+            <div style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">
+              Cliente: <strong style="color:var(--text)">{{ pedido.cliente.nombre }}</strong> |
+              Hora: <strong style="color:var(--text)">{{ pedido.creado_en.strftime('%H:%M') }}</strong>
+            </div>
+
+            <div style="margin-bottom:1rem">
+              {% for item in pedido.items %}
+                {% if current_user.rol == 'admin' or (item.producto and item.producto.categoria == current_user.seccion) %}
+                <div class="comanda-item">
+                  {% if item.producto and item.producto.imagen %}
+                    <img src="{{ url_for('static', filename='img/productos/' + item.producto.imagen) }}"
+                      style="width:2rem;height:2rem;border-radius:6px;object-fit:cover">
+                  {% else %}
+                    <span class="ci-emoji">{{ item.producto.emoji if item.producto else '🍽️' }}</span>
+                  {% endif %}
+                  <span class="ci-qty">x{{ item.cantidad }}</span>
+                  <span class="ci-name">{{ item.producto.nombre if item.producto else 'Producto' }}</span>
+                  <span style="font-size:.78rem;color:var(--text-dim)">${{ "%.2f"|format(item.subtotal()) }}</span>
+                </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem;background:var(--dark2);border-radius:var(--radius-sm);margin-bottom:1.25rem">
+              <span style="color:var(--text-dim);font-size:.82rem">Total del pedido</span>
+              <strong style="font-family:var(--font-title);font-size:1.3rem;color:var(--yellow)">${{ "%.2f"|format(pedido.total) }}</strong>
+            </div>
+
+            {% if pedido.notas %}
+            <div style="padding:.6rem .75rem;background:rgba(255,214,0,.08);border-radius:8px;font-size:.78rem;color:var(--yellow);margin-bottom:1rem">
+              📝 {{ pedido.notas }}
+            </div>
+            {% endif %}
+
+            <div style="display:flex;flex-direction:column;gap:.75rem">
+
+              {% if current_user.rol == 'admin' and not pedido.pagado %}
+              <button class="btn-accion green" id="btn-pagar" onclick="accionPedido({{ pedido.id }}, 'pagar')">
+                💰 MARCAR COMO PAGADO
+              </button>
+              {% elif current_user.rol == 'admin' and pedido.pagado %}
+              <div style="text-align:center;padding:.75rem;background:var(--green-dim);border-radius:var(--radius-sm);color:#4ade80;font-weight:700;font-size:.85rem">
+                ✅ Este pedido ya está marcado como pagado
+              </div>
+              {% endif %}
+
+              {% if current_user.rol == 'chef' %}
+                {% set est_sec = pedido.estados | selectattr('seccion', 'equalto', current_user.seccion) | first %}
+                {% if est_sec %}
+                  {% if not pedido.pagado %}
+                  <div style="text-align:center;padding:.75rem;background:var(--red-dim);border-radius:var(--radius-sm);color:#f87171;font-weight:700;font-size:.85rem">
+                    🚫 No puedes entregar — el pedido no está pagado
+                  </div>
+                  {% elif est_sec.estado == 'entregado' %}
+                  <div style="text-align:center;padding:.75rem;background:var(--green-dim);border-radius:var(--radius-sm);color:#4ade80;font-weight:700;font-size:.85rem">
+                    ✅ Ya entregaste tu parte de este pedido
+                  </div>
+                  {% elif est_sec.estado == 'abandonado' %}
+                  <div style="text-align:center;padding:.75rem;background:rgba(239,68,68,.12);border:1px solid #ef4444;border-radius:var(--radius-sm);color:#f87171;font-weight:700;font-size:.85rem">
+                    🚫 Esta parte no fue recogida a tiempo
+                  </div>
+                  {% elif est_sec.estado == 'preparado' %}
+                  <button class="btn-accion orange" id="btn-entregar" onclick="accionPedido({{ pedido.id }}, 'entregar_seccion')">
+                    📦 ENTREGAR MI PARTE
+                  </button>
+                  {% else %}
+                  <div style="text-align:center;padding:.75rem;background:var(--dark2);border-radius:var(--radius-sm);color:var(--text-dim);font-weight:700;font-size:.85rem">
+                    ⏳ Este pedido aún no está listo para entregar
+                  </div>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+
+              {% if current_user.rol == 'admin' and pedido.pagado and pedido.estado not in ('entregado', 'abandonado') %}
+              <button class="btn-accion orange" id="btn-entregar" onclick="accionPedido({{ pedido.id }}, 'entregar')">
+                📦 MARCAR COMO ENTREGADO
+              </button>
+              {% elif current_user.rol == 'admin' and pedido.estado == 'entregado' %}
+              <div style="text-align:center;padding:.75rem;background:var(--green-dim);border-radius:var(--radius-sm);color:#4ade80;font-weight:700;font-size:.85rem">
+                ✅ Este pedido ya fue entregado
+              </div>
+              {% endif %}
+
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import QrScanner from 'https://unpkg.com/qr-scanner/qr-scanner.min.js';
+
+const video    = document.getElementById('qr-video');
+const statusEl = document.getElementById('scanner-status');
+
+const qrScanner = new QrScanner(
+  video,
+  result => {
+    const id = result.data.trim();
+    if (id) {
+      qrScanner.stop();
+      statusEl.textContent = 'QR detectado: #' + id;
+      statusEl.style.color = '#4ade80';
+      document.getElementById('pedido-input').value = id;
+      document.getElementById('scan-form').submit();
+    }
+  },
+  { highlightScanRegion: true, highlightCodeOutline: true }
+);
+
+qrScanner.start()
+  .then(() => {
+    statusEl.textContent = 'Apunta al QR del cliente';
+    statusEl.style.color = '#4ade80';
+  })
+  .catch(() => {
+    statusEl.textContent = 'Sin camara — usa ingreso manual';
+    statusEl.style.color = '#f87171';
+  });
+
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+setInterval(updateClock, 1000); updateClock();
+
+window.accionPedido = function(id, accion) {
+  let url;
+  if (accion === 'pagar') url = `/pedidos/escanear/${id}/pagar`;
+  else if (accion === 'entregar_seccion') url = `/pedidos/escanear/${id}/entregar_seccion`;
+  else url = `/pedidos/escanear/${id}/entregar`;
+
+  const btn = document.getElementById('btn-entregar') || document.getElementById('btn-pagar');
+  if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
+
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        showToast(accion === 'pagar' ? '💰 Pedido marcado como PAGADO' : '✅ Parte entregada correctamente');
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        showToast('❌ ' + (data.error || 'Error al procesar'));
+        if (btn) btn.disabled = false;
+      }
+    })
+    .catch(() => showToast('❌ Error de conexión'));
+}
+</script>
+{% endblock %}

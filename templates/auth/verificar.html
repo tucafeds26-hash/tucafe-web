@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Verificar Cuenta — TU CAFE{% endblock %}
+
+{% block content %}
+<div class="login-container" style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:2rem">
+  <div style="background:white;border-radius:24px;padding:2.5rem;max-width:400px;width:100%;box-shadow:0 8px 48px rgba(0,0,0,.12);text-align:center">
+
+    <div style="font-size:3rem;margin-bottom:1rem">📧</div>
+    <h1 style="font-family:'Black Han Sans',sans-serif;font-size:1.5rem;margin-bottom:.5rem">VERIFICA TU CUENTA</h1>
+    <p style="color:#6b7280;font-size:.9rem;margin-bottom:2rem">
+      Te mandamos un codigo de 6 digitos a<br>
+      <strong style="color:#111">{{ email }}</strong>
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div style="padding:.75rem;border-radius:8px;margin-bottom:1rem;font-size:.85rem;font-weight:700;
+        background:{% if category == 'error' %}#fee2e2{% else %}#dcfce7{% endif %};
+        color:{% if category == 'error' %}#991b1b{% else %}#166534{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.verificar') }}">
+      <input type="hidden" name="email" value="{{ email }}">
+      <div style="margin-bottom:1.5rem">
+        <input type="text" name="codigo" maxlength="6"
+          style="width:100%;text-align:center;font-size:2rem;font-weight:900;letter-spacing:.3em;padding:1rem;border:2px solid #e5e7eb;border-radius:12px;outline:none"
+          placeholder="000000" autofocus autocomplete="off">
+      </div>
+      <button type="submit"
+        style="width:100%;background:#111;color:white;border:none;padding:1rem;border-radius:999px;font-family:'Black Han Sans',sans-serif;font-size:1rem;letter-spacing:.06em;cursor:pointer">
+        VERIFICAR CUENTA
+      </button>
+    </form>
+
+    <p style="margin-top:1.5rem;font-size:.8rem;color:#9ca3af">
+      No recibiste el correo?
+      <a href="{{ url_for('auth.registro') }}" style="color:#F97316;font-weight:700">Intentalo de nuevo</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
