@@ -24,23 +24,30 @@ def generar_qr_base64(pedido_id):
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
 def generar_horas_recoger():
-    ahora       = datetime.now()
+    import pytz
+    from datetime import datetime, timedelta, time as dtime
+
+    tz_mexico   = pytz.timezone('America/Mexico_City')
+    ahora       = datetime.now(tz_mexico).replace(tzinfo=None)
     minimo      = ahora + timedelta(minutes=20)
     hora_actual = ahora.hour
+
     if hora_actual < 15:
-        turno_inicio = datetime.combine(ahora.date(), time(8, 0))
-        turno_fin    = datetime.combine(ahora.date(), time(14, 0))
+        turno_inicio = datetime.combine(ahora.date(), dtime(8, 0))
+        turno_fin    = datetime.combine(ahora.date(), dtime(14, 0))
         turno_nombre = 'Matutino'
     else:
-        turno_inicio = datetime.combine(ahora.date(), time(15, 0))
-        turno_fin    = datetime.combine(ahora.date(), time(20, 0))
+        turno_inicio = datetime.combine(ahora.date(), dtime(15, 0))
+        turno_fin    = datetime.combine(ahora.date(), dtime(20, 0))
         turno_nombre = 'Vespertino'
+
     slots = []
     t = turno_inicio
     while t <= turno_fin:
         if t >= minimo:
             slots.append(t.strftime('%H:%M'))
         t += timedelta(minutes=15)
+
     return slots, turno_nombre
 
 # ── CARRITO (se queda en sesion, no necesita API) ─────────────
