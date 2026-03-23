@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_login import LoginManager
 from flask_mail import Mail
@@ -10,8 +11,17 @@ from routes.admin import admin_bp
 from routes.chef import chef_bp
 
 app = Flask(__name__)
-app.config['SECRET_KEY']                     = 'tucafe-secret-2024'
-app.config['SQLALCHEMY_DATABASE_URI']        = 'postgresql+psycopg2://postgres:12345@localhost:5432/tucafe'
+app.config['SECRET_KEY'] = 'tucafe-secret-2024'
+
+# BD — fix para Railway
+db_url = os.environ.get('DATABASE_URL', '')
+if not db_url:
+    db_url = 'postgresql+psycopg2://postgres:12345@localhost:5432/tucafe'
+elif db_url.startswith('postgres://'):
+    db_url = db_url.replace('postgres://', 'postgresql+psycopg2://', 1)
+elif db_url.startswith('postgresql://'):
+    db_url = db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 app.config['MAIL_SERVER']         = 'smtp.gmail.com'
