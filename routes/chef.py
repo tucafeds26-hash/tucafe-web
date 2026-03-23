@@ -6,8 +6,7 @@ import requests
 
 chef_bp = Blueprint('chef', __name__)
 
-API_URL = 'http://localhost:5001/api/v1'
-
+API_URL = 'https://tucafe-api-production.up.railway.app/api/v1'
 def get_token():
     from flask import session
     return session.get('jwt_token', '')

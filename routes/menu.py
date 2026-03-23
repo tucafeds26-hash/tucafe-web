@@ -3,7 +3,7 @@ import requests
 
 menu_bp = Blueprint('menu', __name__)
 
-API_URL = 'http://localhost:5001/api/v1'
+API_URL = 'https://tucafe-api-production.up.railway.app/api/v1'
 
 @menu_bp.route('/')
 def index():

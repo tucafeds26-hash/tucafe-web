@@ -4,8 +4,7 @@ from datetime import datetime, timedelta, time
 import requests, qrcode, io, base64, stripe, os
 
 pedidos_bp = Blueprint('pedidos', __name__)
-
-API_URL   = 'http://localhost:5001/api/v1'
+API_URL = 'https://tucafe-api-production.up.railway.app/api/v1'
 STRIPE_SK = os.environ.get('STRIPE_SK', '')
 
 def get_token():

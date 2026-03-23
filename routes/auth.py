@@ -5,7 +5,7 @@ import requests
 
 auth_bp = Blueprint('auth', __name__)
 
-API_URL = 'http://localhost:5001/api/v1'
+API_URL = 'https://tucafe-api-production.up.railway.app/api/v1'
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
