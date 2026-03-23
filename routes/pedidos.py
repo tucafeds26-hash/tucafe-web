@@ -11,7 +11,10 @@ def get_token():
     return session.get('jwt_token', '')
 
 def api_headers():
-    return {'Authorization': f'Bearer {get_token()}'}
+    token = get_token()
+    if token and isinstance(token, str):
+        return {'Authorization': f'Bearer {token}'}
+    return { }
 
 def generar_qr_base64(pedido_id):
     qr = qrcode.QRCode(version=1, box_size=8, border=4)
